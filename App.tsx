@@ -41,33 +41,54 @@ const App: React.FC = () => {
     };
 
     setDataLoading(true);
-    const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
-    const unsubscribeTransactions = onSnapshot(q, (querySnapshot) => {
-      const transactionsData: Transaction[] = [];
-      querySnapshot.forEach((doc) => {
-        transactionsData.push({ ...doc.data(), id: doc.id } as Transaction);
-      });
-      setTransactions(transactionsData);
-      setDataLoading(false);
-    }, (error) => {
-        console.error("Error fetching transactions: ", error);
+
+    // Aguarda o token de autenticação estar pronto antes de configurar os listeners do Firestore
+    const setupFirestoreListeners = async () => {
+      try {
+        // Garante que o token de autenticação está disponível
+        await authUser.getIdToken();
+
+        const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+        const unsubscribeTransactions = onSnapshot(q, (querySnapshot) => {
+          const transactionsData: Transaction[] = [];
+          querySnapshot.forEach((doc) => {
+            transactionsData.push({ ...doc.data(), id: doc.id } as Transaction);
+          });
+          setTransactions(transactionsData);
+          setDataLoading(false);
+        }, (error) => {
+            console.error("Error fetching transactions: ", error);
+            setDataLoading(false);
+        });
+
+        const qCategories = query(collection(db, 'categories'), orderBy('name', 'asc'));
+        const unsubscribeCategories = onSnapshot(qCategories, (querySnapshot) => {
+          const categoriesData: Category[] = [];
+          querySnapshot.forEach((doc) => {
+            categoriesData.push({ ...doc.data(), id: doc.id } as Category);
+          });
+          setCategories(categoriesData);
+        }, (error) => {
+            console.error("Error fetching categories: ", error);
+        });
+
+        return () => {
+            unsubscribeTransactions();
+            unsubscribeCategories();
+        };
+      } catch (error) {
+        console.error("Error setting up Firestore listeners: ", error);
         setDataLoading(false);
-    });
-    
-    const qCategories = query(collection(db, 'categories'), orderBy('name', 'asc'));
-    const unsubscribeCategories = onSnapshot(qCategories, (querySnapshot) => {
-      const categoriesData: Category[] = [];
-      querySnapshot.forEach((doc) => {
-        categoriesData.push({ ...doc.data(), id: doc.id } as Category);
-      });
-      setCategories(categoriesData);
-    }, (error) => {
-        console.error("Error fetching categories: ", error);
+      }
+    };
+
+    let cleanup: (() => void) | undefined;
+    setupFirestoreListeners().then((unsubscribe) => {
+      cleanup = unsubscribe;
     });
 
     return () => {
-        unsubscribeTransactions();
-        unsubscribeCategories();
+      if (cleanup) cleanup();
     };
   }, [authUser]);
 
