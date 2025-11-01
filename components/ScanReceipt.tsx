@@ -89,6 +89,12 @@ const ScanReceipt: React.FC<ScanReceiptProps> = ({ onScanComplete, onCancel }) =
             },
         });
 
+        if (!response.text) {
+            setError("Não foi possível obter resposta da API. Tente novamente.");
+            setIsLoading(false);
+            return;
+        }
+
         const result = JSON.parse(response.text);
         
         if (result && result.amount && result.description && result.date) {

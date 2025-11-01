@@ -1,4 +1,4 @@
-export type User = 'Fellipe' | 'Mhariana';
+export type User = 'Eu' | 'Esposa';
 export type TransactionType = 'income' | 'expense';
 export type View = 'dashboard' | 'reports' | 'categories' | 'profile' | 'scanReceipt';
 

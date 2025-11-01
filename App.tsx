@@ -3,12 +3,13 @@ import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy } from '
 import { db, auth } from './firebase';
 import { onAuthStateChanged, signOut, User as FirebaseUser } from 'firebase/auth';
 
-import { Transaction, Category, User, View, TransactionType } from './types';
+import { Transaction, Category, User, View, TransactionType, ScannedReceiptData, AuthUser } from './types';
 import Dashboard from './components/Dashboard';
 import Reports from './components/Reports';
 import CategoryManager from './components/CategoryManager';
 import { HomeIcon, ChartBarIcon, TagIcon } from './components/icons';
 import Login from './components/Login';
+import ScanReceipt from './components/ScanReceipt';
 
 const App: React.FC = () => {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
@@ -21,6 +22,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User>('Eu');
   const [view, setView] = useState<View>('dashboard');
   const [viewUserFilter, setViewUserFilter] = useState<User | 'Ambos'>('Ambos');
+  const [scannedData, setScannedData] = useState<ScannedReceiptData | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -74,12 +76,16 @@ const App: React.FC = () => {
     if (viewUserFilter === 'Ambos') {
       return transactions;
     }
-    return transactions.filter(t => t.userId === viewUserFilter);
+    return transactions.filter(t => t.userName === viewUserFilter);
   }, [transactions, viewUserFilter]);
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
     try {
-        await addDoc(collection(db, "transactions"), transaction);
+        const transactionWithTimestamp = {
+            ...transaction,
+            createdAt: new Date().toISOString()
+        };
+        await addDoc(collection(db, "transactions"), transactionWithTimestamp);
     } catch(e) {
         console.error("Error adding transaction: ", e);
         alert("Ocorreu um erro ao adicionar o lançamento.");
@@ -96,14 +102,20 @@ const App: React.FC = () => {
     }
   };
   
-  const addCategory = async (name: string, type: TransactionType) => {
+  const addCategoryWithId = async (name: string, type: TransactionType): Promise<string> => {
     const newCategory: Omit<Category, 'id'> = { name, type };
     try {
-        await addDoc(collection(db, "categories"), newCategory);
+        const docRef = await addDoc(collection(db, "categories"), newCategory);
+        return docRef.id;
     } catch(e) {
         console.error("Error adding category: ", e);
         alert("Ocorreu um erro ao adicionar a categoria.");
+        throw e;
     }
+  };
+
+  const addCategory = async (name: string, type: TransactionType): Promise<void> => {
+    await addCategoryWithId(name, type);
   };
   
   const deleteCategory = async (id: string) => {
@@ -118,6 +130,23 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     signOut(auth).catch((error) => console.error("Error signing out:", error));
+  };
+
+  const onScanReceiptClick = () => {
+    setView('scanReceipt');
+  };
+
+  const clearScannedData = () => {
+    setScannedData(null);
+  };
+
+  const handleScanComplete = (data: ScannedReceiptData) => {
+    setScannedData(data);
+    setView('dashboard');
+  };
+
+  const handleScanCancel = () => {
+    setView('dashboard');
   };
 
 
@@ -142,28 +171,48 @@ const App: React.FC = () => {
   }
 
   const renderView = () => {
+    if (!authUser) return null;
+
+    const loggedInUser: AuthUser = {
+      uid: authUser.uid,
+      email: authUser.email || '',
+      name: currentUser
+    };
+
     switch (view) {
       case 'dashboard':
-        return <Dashboard 
+        return <Dashboard
+                  loggedInUser={loggedInUser}
                   currentUser={currentUser}
                   transactions={transactions}
                   categories={categories}
                   addTransaction={addTransaction}
+                  addCategory={addCategoryWithId}
                   deleteTransaction={deleteTransaction}
                   filteredTransactions={filteredTransactions}
+                  onScanReceiptClick={onScanReceiptClick}
+                  scannedData={scannedData}
+                  clearScannedData={clearScannedData}
                 />;
       case 'reports':
         return <Reports transactions={filteredTransactions} categories={categories} />;
       case 'categories':
         return <CategoryManager categories={categories} addCategory={addCategory} deleteCategory={deleteCategory} />;
+      case 'scanReceipt':
+        return <ScanReceipt onScanComplete={handleScanComplete} onCancel={handleScanCancel} />;
       default:
-        return <Dashboard 
+        return <Dashboard
+                  loggedInUser={loggedInUser}
                   currentUser={currentUser}
                   transactions={transactions}
                   categories={categories}
                   addTransaction={addTransaction}
+                  addCategory={addCategoryWithId}
                   deleteTransaction={deleteTransaction}
                   filteredTransactions={filteredTransactions}
+                  onScanReceiptClick={onScanReceiptClick}
+                  scannedData={scannedData}
+                  clearScannedData={clearScannedData}
                 />;
     }
   };
