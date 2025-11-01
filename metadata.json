@@ -1,0 +1,7 @@
+{
+  "name": "Finanças do Casal",
+  "description": "Um sistema de gestão financeira pessoal para casais. Permite o lançamento de receitas e despesas, categorização, uso de tags e geração de relatórios individuais ou conjuntos para um controle financeiro completo e colaborativo.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
