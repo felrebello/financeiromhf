@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Controle Financeiro Fellipe & Mhariana",
+  "description": "Uma plataforma de controle financeiro pessoal para Fellipe e Mhariana, permitindo o cadastro de receitas, despesas e análise de notas fiscais com IA.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
